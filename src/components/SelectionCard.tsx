@@ -1,7 +1,10 @@
 import type { Selection } from "@/types/betting";
 import { ConfidenceBadge } from "./ConfidenceBadge";
+import { formatKickoff } from "@/utils/formatters";
+import { CalendarClock } from "lucide-react";
 
 export function SelectionCard({ selection, index }: { selection: Selection; index: number }) {
+  const kickoff = formatKickoff(selection.kickoff);
   return (
     <div
       className="bg-gradient-card border border-border rounded-2xl p-4 animate-float-up"
