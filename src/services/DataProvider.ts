@@ -1,5 +1,6 @@
 import type { RawMatch } from "@/types/betting";
 import { generateMockMatches } from "@/utils/mockData";
+import { isTodayInSaoPaulo } from "@/utils/formatters";
 
 const API_KEY_STORAGE = "betia_odds_api_key";
 
@@ -140,12 +141,13 @@ async function fetchSport(sport: string, apiKey: string): Promise<RawMatch[]> {
   const events: OddsApiEvent[] = await res.json();
 
   const now = Date.now();
-  const horizon = now + 36 * 60 * 60 * 1000; // next 36h
 
   const matches: RawMatch[] = [];
   for (const ev of events) {
     const t = new Date(ev.commence_time).getTime();
-    if (t < now || t > horizon) continue;
+    if (!Number.isFinite(t)) continue;
+    if (t < now) continue; // já começou
+    if (!isTodayInSaoPaulo(ev.commence_time)) continue; // somente hoje (fuso BR)
     const odds = aggregateOdds(ev);
     if (!odds) continue;
     matches.push({
