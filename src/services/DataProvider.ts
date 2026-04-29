@@ -161,17 +161,6 @@ async function fetchSport(sport: string, apiKey: string): Promise<RawMatch[]> {
   }
   return matches;
 }
-      id: ev.id,
-      homeTeam: ev.home_team,
-      awayTeam: ev.away_team,
-      league: ev.sport_title,
-      kickoff: ev.commence_time,
-      odds,
-      _stats: deriveStats(odds),
-    });
-  }
-  return matches;
-}
 
 export async function fetchTodayMatches(): Promise<RawMatch[]> {
   const apiKey = getApiKey();
