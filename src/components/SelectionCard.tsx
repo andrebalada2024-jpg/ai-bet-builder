@@ -29,7 +29,7 @@ export function SelectionCard({ selection, index }: { selection: Selection; inde
         {kickoff && (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-secondary/60 border border-border text-muted-foreground">
             <CalendarClock className="w-3 h-3" />
-            {kickoff}
+            Hoje • {kickoff}
           </span>
         )}
       </div>
