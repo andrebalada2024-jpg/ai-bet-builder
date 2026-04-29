@@ -1,5 +1,6 @@
 import type { RawMatch } from "@/types/betting";
 import { generateMockMatches } from "@/utils/mockData";
+import { isTodayInSaoPaulo } from "@/utils/formatters";
 
 const API_KEY_STORAGE = "betia_odds_api_key";
 
