@@ -140,15 +140,27 @@ async function fetchSport(sport: string, apiKey: string): Promise<RawMatch[]> {
   const events: OddsApiEvent[] = await res.json();
 
   const now = Date.now();
-  const horizon = now + 36 * 60 * 60 * 1000; // next 36h
 
   const matches: RawMatch[] = [];
   for (const ev of events) {
     const t = new Date(ev.commence_time).getTime();
-    if (t < now || t > horizon) continue;
+    if (!Number.isFinite(t)) continue;
+    if (t < now) continue; // já começou
+    if (!isTodayInSaoPaulo(ev.commence_time)) continue; // somente hoje (fuso BR)
     const odds = aggregateOdds(ev);
     if (!odds) continue;
     matches.push({
+      id: ev.id,
+      homeTeam: ev.home_team,
+      awayTeam: ev.away_team,
+      league: ev.sport_title,
+      kickoff: ev.commence_time,
+      odds,
+      _stats: deriveStats(odds),
+    });
+  }
+  return matches;
+}
       id: ev.id,
       homeTeam: ev.home_team,
       awayTeam: ev.away_team,
