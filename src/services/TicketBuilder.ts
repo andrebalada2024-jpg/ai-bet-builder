@@ -44,6 +44,7 @@ export function buildTicket(
           matchId: m.id,
           matchLabel: `${m.homeTeam} x ${m.awayTeam}`,
           league: m.league,
+          kickoff: m.kickoff,
           market: c.market,
           odd: c.odd,
           confidence: scoreToConfidence(c.score),
