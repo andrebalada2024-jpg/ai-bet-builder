@@ -37,6 +37,7 @@ export interface Selection {
   matchId: string;
   matchLabel: string; // "Home x Away"
   league: string;
+  kickoff: string; // ISO datetime of the match
   market: string; // user-facing label
   odd: number;
   confidence: Confidence;

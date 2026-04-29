@@ -1,7 +1,10 @@
 import type { Selection } from "@/types/betting";
 import { ConfidenceBadge } from "./ConfidenceBadge";
+import { formatKickoff } from "@/utils/formatters";
+import { CalendarClock } from "lucide-react";
 
 export function SelectionCard({ selection, index }: { selection: Selection; index: number }) {
+  const kickoff = formatKickoff(selection.kickoff);
   return (
     <div
       className="bg-gradient-card border border-border rounded-2xl p-4 animate-float-up"
@@ -18,11 +21,17 @@ export function SelectionCard({ selection, index }: { selection: Selection; inde
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
         <span className="px-2.5 py-1 bg-secondary rounded-lg text-xs font-medium border border-border">
           {selection.market}
         </span>
         <ConfidenceBadge confidence={selection.confidence} size="xs" />
+        {kickoff && (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-secondary/60 border border-border text-muted-foreground">
+            <CalendarClock className="w-3 h-3" />
+            {kickoff}
+          </span>
+        )}
       </div>
 
       <p className="text-xs text-muted-foreground leading-relaxed">{selection.reason}</p>
