@@ -3,6 +3,7 @@ import { SelectionCard } from "./SelectionCard";
 import { RiskBadge } from "./RiskBadge";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { CopyButton } from "./CopyButton";
+import { StakeInput } from "./StakeInput";
 import { formatTicketForCopy } from "@/utils/formatters";
 
 const SCENARIO_LABELS = {
@@ -38,6 +39,8 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
           <SelectionCard key={`${s.matchId}-${i}`} selection={s} index={i} />
         ))}
       </div>
+
+      <StakeInput estimatedOdd={ticket.estimatedOdd} />
 
       <div className="flex justify-end">
         <CopyButton text={formatTicketForCopy(ticket)} />

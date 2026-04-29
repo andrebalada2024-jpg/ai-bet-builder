@@ -1,17 +1,21 @@
 import type { Scenario } from "@/types/betting";
 import { ScenarioCard } from "@/components/ScenarioCard";
 import { Disclaimer } from "@/components/Disclaimer";
+import { ApiKeySettings } from "@/components/ApiKeySettings";
 import { Sparkles } from "lucide-react";
 
 export function HomeScreen({ onSelect }: { onSelect: (s: Scenario) => void }) {
   return (
     <div className="relative min-h-screen w-full bg-gradient-hero">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 pb-12">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-9 h-9 rounded-xl bg-gradient-gold flex items-center justify-center shadow-gold">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
+        <div className="flex items-center justify-between gap-2 mb-8">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-gold flex items-center justify-center shadow-gold">
+              <Sparkles className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span className="font-bold tracking-tight">BetIA</span>
           </div>
-          <span className="font-bold tracking-tight">BetIA</span>
+          <ApiKeySettings />
         </div>
 
         <header className="mb-10 sm:mb-12">
