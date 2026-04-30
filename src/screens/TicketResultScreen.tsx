@@ -1,14 +1,21 @@
 import type { Ticket } from "@/types/betting";
 import { TicketCard } from "@/components/TicketCard";
 import { Disclaimer } from "@/components/Disclaimer";
+import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { ArrowLeft, RotateCw } from "lucide-react";
 
 export function TicketResultScreen({
   ticket,
+  meta,
+  refreshing,
+  onRefresh,
   onBack,
   onRegenerate,
 }: {
   ticket: Ticket;
+  meta: { source: "real" | "mock"; fetchedAt: string };
+  refreshing?: boolean;
+  onRefresh?: () => void;
   onBack: () => void;
   onRegenerate: () => void;
 }) {
@@ -30,6 +37,12 @@ export function TicketResultScreen({
           </button>
         </div>
 
+        <DataSourceBadge
+          source={meta.source}
+          fetchedAt={meta.fetchedAt}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+        />
         <TicketCard ticket={ticket} />
         <Disclaimer />
       </div>

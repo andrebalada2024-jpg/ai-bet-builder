@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { DailyTicket } from "@/types/betting";
 import { TicketCard } from "@/components/TicketCard";
 import { Disclaimer } from "@/components/Disclaimer";
+import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { ArrowLeft, RotateCw, Copy } from "lucide-react";
 import { formatTicketForCopy } from "@/utils/formatters";
 import { toast } from "sonner";
@@ -16,10 +17,16 @@ const TABS: { key: Tab; label: string }[] = [
 
 export function DailyResultScreen({
   daily,
+  meta,
+  refreshing,
+  onRefresh,
   onBack,
   onRegenerate,
 }: {
   daily: DailyTicket;
+  meta: { source: "real" | "mock"; fetchedAt: string };
+  refreshing?: boolean;
+  onRefresh?: () => void;
   onBack: () => void;
   onRegenerate: () => void;
 }) {
@@ -95,6 +102,12 @@ export function DailyResultScreen({
           ))}
         </div>
 
+        <DataSourceBadge
+          source={meta.source}
+          fetchedAt={meta.fetchedAt}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+        />
         <TicketCard ticket={ticket} />
         <Disclaimer />
       </div>
