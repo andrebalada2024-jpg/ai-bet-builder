@@ -10,7 +10,7 @@ export interface EngineResult {
   ticket?: Ticket;
   daily?: DailyTicket;
   meta: {
-    source: "real";
+    source: "real" | "mock";
     fetchedAt: string;
   };
 }

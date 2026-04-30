@@ -14,7 +14,7 @@ const Index = () => {
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [daily, setDaily] = useState<DailyTicket | null>(null);
-  const [meta, setMeta] = useState<{ source: "real"; fetchedAt: string } | null>(null);
+  const [meta, setMeta] = useState<{ source: "real" | "mock"; fetchedAt: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const refreshTimer = useRef<number | null>(null);
 
