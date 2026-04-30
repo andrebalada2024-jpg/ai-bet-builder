@@ -189,23 +189,3 @@ export async function fetchTodayMatches(): Promise<RawMatch[]> {
   return all;
 }
 
-// Mantido apenas para compat — não é mais usado.
-export async function _legacyMockFallback(): Promise<RawMatch[]> {
-  const { generateMockMatches: gen } = await import("@/utils/mockData");
-  return gen(14);
-}
-
-// Wrapper antigo removido abaixo (substituído pelo bloco acima).
-async function _unused() {
-  try {
-    const all: RawMatch[] = [];
-    if (all.length === 0) {
-      console.warn("[BetIA] No real matches available, using mock");
-      return generateMockMatches(14);
-    }
-    return all;
-  } catch (e) {
-    console.warn("[BetIA] Real API failed, falling back to mock:", e);
-    return generateMockMatches(14);
-  }
-}
