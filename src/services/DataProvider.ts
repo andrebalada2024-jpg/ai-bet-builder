@@ -135,9 +135,10 @@ function deriveStats(odds: { home: number; draw: number; away: number }) {
 }
 
 async function fetchSport(sport: string, apiKey: string): Promise<RawMatch[]> {
-  const url = `https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${apiKey}&regions=eu,uk&markets=h2h,totals,btts&oddsFormat=decimal&dateFormat=iso`;
+  // Nota: o endpoint /odds só aceita h2h e totals. BTTS exige endpoint dedicado por evento.
+  const url = `https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${apiKey}&regions=eu,uk&markets=h2h,totals&oddsFormat=decimal&dateFormat=iso`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Odds API ${res.status}`);
+  if (!res.ok) throw new Error(`Odds API ${sport} ${res.status}`);
   const events: OddsApiEvent[] = await res.json();
 
   const now = Date.now();
@@ -167,16 +168,37 @@ export async function fetchTodayMatches(): Promise<RawMatch[]> {
   const apiKey = getApiKey();
 
   if (!apiKey) {
-    await new Promise((r) => setTimeout(r, 700));
-    return generateMockMatches(14);
+    // Sem chave configurada → não retornamos dados fictícios.
+    throw new Error("NO_API_KEY");
   }
 
-  try {
-    const results = await Promise.allSettled(SPORTS.map((s) => fetchSport(s, apiKey)));
-    const all: RawMatch[] = [];
-    for (const r of results) {
-      if (r.status === "fulfilled") all.push(...r.value);
+  const results = await Promise.allSettled(SPORTS.map((s) => fetchSport(s, apiKey)));
+  const all: RawMatch[] = [];
+  let anyFulfilled = false;
+  for (const r of results) {
+    if (r.status === "fulfilled") {
+      anyFulfilled = true;
+      all.push(...r.value);
+    } else {
+      console.warn("[BetIA] Falha em sport:", r.reason);
     }
+  }
+  if (!anyFulfilled) {
+    throw new Error("API_FAILED");
+  }
+  return all;
+}
+
+// Mantido apenas para compat — não é mais usado.
+export async function _legacyMockFallback(): Promise<RawMatch[]> {
+  const { generateMockMatches: gen } = await import("@/utils/mockData");
+  return gen(14);
+}
+
+// Wrapper antigo removido abaixo (substituído pelo bloco acima).
+async function _unused() {
+  try {
+    const all: RawMatch[] = [];
     if (all.length === 0) {
       console.warn("[BetIA] No real matches available, using mock");
       return generateMockMatches(14);
