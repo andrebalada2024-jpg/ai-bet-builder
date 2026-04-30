@@ -66,4 +66,6 @@ export type AppState =
   | "generating_strategy"
   | "success"
   | "error"
+  | "no_api_key"
+  | "api_failed"
   | "no_matches_found";
