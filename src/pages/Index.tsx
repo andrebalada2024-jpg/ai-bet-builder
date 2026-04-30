@@ -44,7 +44,12 @@ const Index = () => {
       setState("success");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
-      if (!opts.silent) setState(msg === "NO_MATCHES" ? "no_matches_found" : "error");
+      if (!opts.silent) {
+        if (msg === "NO_API_KEY") setState("no_api_key");
+        else if (msg === "API_FAILED") setState("api_failed");
+        else if (msg === "NO_MATCHES") setState("no_matches_found");
+        else setState("error");
+      }
     } finally {
       setRefreshing(false);
     }
@@ -83,11 +88,32 @@ const Index = () => {
     return <LoadingAnalysis />;
   }
 
+  if (state === "no_api_key") {
+    return (
+      <ErrorState
+        title="Chave da API não configurada"
+        message="Para gerar bilhetes com dados reais, configure sua chave da The Odds API no botão de configurações na tela inicial."
+        onHome={goHome}
+      />
+    );
+  }
+
+  if (state === "api_failed") {
+    return (
+      <ErrorState
+        title="Falha ao buscar dados reais"
+        message="Não conseguimos contatar a The Odds API. Verifique sua chave e conexão e tente novamente."
+        onRetry={regenerate}
+        onHome={goHome}
+      />
+    );
+  }
+
   if (state === "no_matches_found") {
     return (
       <ErrorState
-        title="Nenhum jogo disponível"
-        message="Não encontramos jogos do dia com odds suficientes para gerar um bilhete."
+        title="Nenhum jogo real disponível hoje"
+        message="Não há partidas reais com odds suficientes para gerar um bilhete neste momento."
         onHome={goHome}
         onRetry={regenerate}
       />
