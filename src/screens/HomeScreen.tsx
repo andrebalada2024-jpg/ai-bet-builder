@@ -1,10 +1,14 @@
+import { useState } from "react";
 import type { Scenario } from "@/types/betting";
 import { ScenarioCard } from "@/components/ScenarioCard";
 import { Disclaimer } from "@/components/Disclaimer";
 import { ApiKeySettings } from "@/components/ApiKeySettings";
-import { Sparkles } from "lucide-react";
+import { TodayMatchesDialog } from "@/components/TodayMatchesDialog";
+import { Button } from "@/components/ui/button";
+import { Sparkles, ListChecks } from "lucide-react";
 
 export function HomeScreen({ onSelect }: { onSelect: (s: Scenario) => void }) {
+  const [matchesOpen, setMatchesOpen] = useState(false);
   return (
     <div className="relative min-h-screen w-full bg-gradient-hero">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 pt-10 pb-12">
@@ -26,6 +30,17 @@ export function HomeScreen({ onSelect }: { onSelect: (s: Scenario) => void }) {
             Escolha um cenário e receba o bilhete pronto.
           </p>
         </header>
+
+        <Button
+          onClick={() => setMatchesOpen(true)}
+          variant="outline"
+          className="w-full mb-4 h-12 border-gold/40 hover:border-gold hover:bg-gold/5"
+        >
+          <ListChecks className="w-4 h-4 text-gold" />
+          Ver jogos reais de hoje
+        </Button>
+
+        <TodayMatchesDialog open={matchesOpen} onOpenChange={setMatchesOpen} />
 
         <div className="space-y-3 sm:space-y-4">
           <ScenarioCard scenario="daily" onClick={() => onSelect("daily")} />
