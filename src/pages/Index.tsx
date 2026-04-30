@@ -1,51 +1,80 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { Scenario, AppState, Ticket, DailyTicket } from "@/types/betting";
-import { generate } from "@/services/HiddenTicketEngine";
+import { generateTicket } from "@/engine/ticketGenerator";
 import { HomeScreen } from "@/screens/HomeScreen";
 import { TicketResultScreen } from "@/screens/TicketResultScreen";
 import { DailyResultScreen } from "@/screens/DailyResultScreen";
 import { LoadingAnalysis } from "@/components/LoadingAnalysis";
 import { ErrorState } from "@/components/ErrorState";
 
+const ODDS_REFRESH_MS = 60_000; // atualização automática de odds
+
 const Index = () => {
   const [state, setState] = useState<AppState>("idle");
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [daily, setDaily] = useState<DailyTicket | null>(null);
+  const [meta, setMeta] = useState<{ source: "real" | "mock"; fetchedAt: string } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshTimer = useRef<number | null>(null);
 
-  const run = useCallback(async (s: Scenario) => {
+  const run = useCallback(async (s: Scenario, opts: { silent?: boolean } = {}) => {
     setScenario(s);
-    setTicket(null);
-    setDaily(null);
-    setState("loading_matches");
-    // Staged states for realistic loading
-    setTimeout(() => setState("analyzing"), 800);
-    setTimeout(() => setState("generating_strategy"), 1800);
+    if (!opts.silent) {
+      setTicket(null);
+      setDaily(null);
+      setState("loading_matches");
+      setTimeout(() => setState("analyzing"), 800);
+      setTimeout(() => setState("generating_strategy"), 1800);
+    } else {
+      setRefreshing(true);
+    }
 
     try {
-      // Ensure minimum perceived analysis time
+      const minWait = opts.silent ? 0 : 2600;
       const [out] = await Promise.all([
-        generate(s),
-        new Promise((r) => setTimeout(r, 2600)),
+        generateTicket(s),
+        new Promise((r) => setTimeout(r, minWait)),
       ]);
       if (out.daily) setDaily(out.daily);
+      else setDaily(null);
       if (out.ticket) setTicket(out.ticket);
+      else setTicket(null);
+      setMeta(out.meta);
       setState("success");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
-      setState(msg === "NO_MATCHES" ? "no_matches_found" : "error");
+      if (!opts.silent) setState(msg === "NO_MATCHES" ? "no_matches_found" : "error");
+    } finally {
+      setRefreshing(false);
     }
   }, []);
+
+  // Auto-refresh de odds a cada 60s enquanto exibe resultado
+  useEffect(() => {
+    if (state !== "success" || !scenario) return;
+    refreshTimer.current = window.setInterval(() => {
+      run(scenario, { silent: true });
+    }, ODDS_REFRESH_MS);
+    return () => {
+      if (refreshTimer.current) window.clearInterval(refreshTimer.current);
+    };
+  }, [state, scenario, run]);
 
   const goHome = () => {
     setState("idle");
     setScenario(null);
     setTicket(null);
     setDaily(null);
+    setMeta(null);
   };
 
   const regenerate = () => {
     if (scenario) run(scenario);
+  };
+
+  const refreshOdds = () => {
+    if (scenario) run(scenario, { silent: true });
   };
 
   if (state === "idle") return <HomeScreen onSelect={run} />;
@@ -69,12 +98,30 @@ const Index = () => {
     return <ErrorState onRetry={regenerate} onHome={goHome} />;
   }
 
-  if (state === "success" && daily) {
-    return <DailyResultScreen daily={daily} onBack={goHome} onRegenerate={regenerate} />;
+  if (state === "success" && daily && meta) {
+    return (
+      <DailyResultScreen
+        daily={daily}
+        meta={meta}
+        refreshing={refreshing}
+        onRefresh={refreshOdds}
+        onBack={goHome}
+        onRegenerate={regenerate}
+      />
+    );
   }
 
-  if (state === "success" && ticket) {
-    return <TicketResultScreen ticket={ticket} onBack={goHome} onRegenerate={regenerate} />;
+  if (state === "success" && ticket && meta) {
+    return (
+      <TicketResultScreen
+        ticket={ticket}
+        meta={meta}
+        refreshing={refreshing}
+        onRefresh={refreshOdds}
+        onBack={goHome}
+        onRegenerate={regenerate}
+      />
+    );
   }
 
   return <HomeScreen onSelect={run} />;
