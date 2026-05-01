@@ -25,7 +25,7 @@ const CONFIG = {
   },
   aggressive: {
     title: "Agressivo",
-    desc: "7 a 9 jogos | odds maiores e risco elevado",
+    desc: "6 a 8 jogos | odds maiores e risco elevado",
     Icon: Flame,
     accent: "from-red-500/20 to-red-500/5 border-red-500/30",
     iconBg: "bg-gradient-red",
@@ -49,9 +49,8 @@ export function ScenarioCard({ scenario, onClick }: Props) {
   return (
     <button
       onClick={onClick}
-      className={`group relative w-full text-left bg-gradient-to-br ${cfg.accent} border-2 rounded-3xl p-5 sm:p-6 transition-bounce hover:scale-[1.02] hover:shadow-card active:scale-[0.99] overflow-hidden ${
-        featured ? "shadow-gold" : ""
-      }`}
+      className={`group relative w-full text-left bg-gradient-to-br ${cfg.accent} border-2 rounded-3xl p-5 sm:p-6 transition-bounce hover:scale-[1.02] hover:shadow-card active:scale-[0.99] overflow-hidden ${featured ? "shadow-gold" : ""
+        }`}
     >
       {featured && (
         <div className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider bg-gradient-gold text-primary-foreground px-2 py-0.5 rounded-full">

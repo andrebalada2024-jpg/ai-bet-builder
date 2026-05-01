@@ -73,9 +73,9 @@ function finalize(
   };
 }
 
-export async function generateTicket(scenario: Scenario): Promise<EngineResult> {
+export async function generateTicket(scenario: Scenario, opts: { bustCache?: boolean } = {}): Promise<EngineResult> {
   // 1. Buscar jogos reais
-  const fetched = await fetchMatches();
+  const fetched = await fetchMatches(opts);
   if (fetched.matches.length === 0) {
     throw new Error("NO_MATCHES");
   }

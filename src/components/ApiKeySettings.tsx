@@ -41,7 +41,7 @@ export function ApiKeySettings() {
     clearApiKey();
     setValue("");
     setHasKey(false);
-    toast.success("Chave removida. Usando dados simulados.");
+    toast.success("Chave removida. Configure novamente para buscar dados reais.");
   };
 
   return (

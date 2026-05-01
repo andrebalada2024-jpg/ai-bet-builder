@@ -25,6 +25,9 @@ export function shouldBlockMatch(p: ProcessedMatch): boolean {
   // Jogo encerrado / muito avançado
   if (getLiveInfo(p.match.kickoff).blocked) return true;
 
+  // Odds extremamente baixas individualmente (odd < 1.15 = mercado anômalo)
+  if (o.home < 1.15 || o.away < 1.15) return true;
+
   // Odds muito baixas dos dois lados (mercado morto)
   if (o.home < 1.2 && o.away < 1.2) return true;
 
@@ -42,7 +45,7 @@ export function shouldBlockMatch(p: ProcessedMatch): boolean {
   // Inconsistência: favorito declarado mas DC opostas quase iguais
   if (o.doubleChance1X && o.doubleChanceX2) {
     if (Math.abs(o.doubleChance1X - o.doubleChanceX2) < 0.05 &&
-        (p.favoriteTier === "strong" || p.favoriteTier === "clear")) {
+      (p.favoriteTier === "strong" || p.favoriteTier === "clear")) {
       return true;
     }
   }

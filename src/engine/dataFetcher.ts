@@ -13,8 +13,8 @@ export interface FetchResult {
  * - Sem fallback fictício
  * - Filtra jogos com odds 1X2 + ao menos 1 mercado adicional
  */
-export async function fetchMatches(): Promise<FetchResult> {
-  const matches = await fetchTodayMatches(); // throws NO_API_KEY | API_FAILED
+export async function fetchMatches(opts: { bustCache?: boolean } = {}): Promise<FetchResult> {
+  const matches = await fetchTodayMatches(opts); // throws NO_API_KEY | API_FAILED
 
   const filtered = matches.filter((m) => {
     const o = m.odds;

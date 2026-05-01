@@ -18,7 +18,7 @@ const Index = () => {
   const [refreshing, setRefreshing] = useState(false);
   const refreshTimer = useRef<number | null>(null);
 
-  const run = useCallback(async (s: Scenario, opts: { silent?: boolean } = {}) => {
+  const run = useCallback(async (s: Scenario, opts: { silent?: boolean; bustCache?: boolean } = {}) => {
     setScenario(s);
     if (!opts.silent) {
       setTicket(null);
@@ -33,7 +33,7 @@ const Index = () => {
     try {
       const minWait = opts.silent ? 0 : 2600;
       const [out] = await Promise.all([
-        generateTicket(s),
+        generateTicket(s, opts),
         new Promise((r) => setTimeout(r, minWait)),
       ]);
       if (out.daily) setDaily(out.daily);
@@ -75,7 +75,7 @@ const Index = () => {
   };
 
   const regenerate = () => {
-    if (scenario) run(scenario);
+    if (scenario) run(scenario, { bustCache: true });
   };
 
   const refreshOdds = () => {
@@ -91,8 +91,8 @@ const Index = () => {
   if (state === "no_api_key") {
     return (
       <ErrorState
-        title="Chave da API não configurada"
-        message="Para gerar bilhetes com dados reais, configure sua chave da The Odds API no botão de configurações na tela inicial."
+        title="API Indisponível"
+        message="Nenhum dado real encontrado. Configure sua chave da The Odds API no botão de configurações na tela inicial."
         onHome={goHome}
       />
     );

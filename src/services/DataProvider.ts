@@ -1,6 +1,30 @@
 import type { RawMatch } from "@/types/betting";
 import { isWithinTodayWindow } from "@/utils/formatters";
 
+// === Cache simples de odds (TTL: 90 segundos) ===
+const CACHE_TTL_MS = 90_000;
+interface OddsCache {
+  data: RawMatch[];
+  fetchedAt: number;
+  apiKey: string;
+}
+let _cache: OddsCache | null = null;
+
+function isCacheValid(apiKey: string): boolean {
+  if (!_cache) return false;
+  if (_cache.apiKey !== apiKey) return false; // chave mudou
+  return Date.now() - _cache.fetchedAt < CACHE_TTL_MS;
+}
+
+function setCache(data: RawMatch[], apiKey: string): void {
+  _cache = { data, fetchedAt: Date.now(), apiKey };
+}
+
+/** Invalida cache manualmente (chamado pelo botão Atualizar Odds) */
+export function invalidateOddsCache(): void {
+  _cache = null;
+}
+
 const API_KEY_STORAGE = "betia_odds_api_key";
 
 export function getApiKey(): string {
@@ -214,12 +238,18 @@ async function fetchSport(sport: string, apiKey: string): Promise<RawMatch[]> {
   return matches;
 }
 
-export async function fetchTodayMatches(): Promise<RawMatch[]> {
+export async function fetchTodayMatches(opts: { bustCache?: boolean } = {}): Promise<RawMatch[]> {
   const apiKey = getApiKey();
 
   if (!apiKey) {
-    // Sem chave configurada → não retornamos dados fictícios.
+    // Sem chave configurada — app não usa dados fictícios
     throw new Error("NO_API_KEY");
+  }
+
+  // Retorna do cache se ainda válido (evita 48 requests repetidos)
+  if (!opts.bustCache && isCacheValid(apiKey)) {
+    console.info("[BetIA] Cache de odds válido, reutilizando dados.");
+    return _cache!.data;
   }
 
   const uniqueSports = Array.from(new Set(SPORTS));
@@ -237,6 +267,8 @@ export async function fetchTodayMatches(): Promise<RawMatch[]> {
   if (!anyFulfilled) {
     throw new Error("API_FAILED");
   }
+
+  setCache(all, apiKey);
   return all;
 }
 
