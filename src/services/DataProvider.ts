@@ -157,12 +157,14 @@ async function fetchSport(sport: string, apiKey: string): Promise<RawMatch[]> {
   const events: OddsApiEvent[] = await res.json();
 
   const now = Date.now();
+  const MAX_LIVE_MS = 65 * 60_000; // jogos ao vivo até 65 min após início
 
   const matches: RawMatch[] = [];
   for (const ev of events) {
     const t = new Date(ev.commence_time).getTime();
     if (!Number.isFinite(t)) continue;
-    if (t < now) continue; // já começou
+    // Permite pré-jogo e ao vivo até 65 min; bloqueia jogos provavelmente encerrados
+    if (now - t > MAX_LIVE_MS) continue;
     if (!isTodayInSaoPaulo(ev.commence_time)) continue; // somente hoje (fuso BR)
     const odds = aggregateOdds(ev);
     if (!odds) continue;
