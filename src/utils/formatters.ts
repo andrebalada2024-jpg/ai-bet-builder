@@ -40,6 +40,25 @@ export function isTodayInSaoPaulo(iso: string): boolean {
   }
 }
 
+/**
+ * Janela "do dia" estendida no fuso BR:
+ * - inclui jogos de hoje (SP)
+ * - inclui jogos das próximas 18h (cobre madrugada europeia/asiática que ainda contam como "rodada do dia")
+ * Garante volume sem perder foco temporal.
+ */
+export function isWithinTodayWindow(iso: string): boolean {
+  try {
+    const t = new Date(iso).getTime();
+    if (!Number.isFinite(t)) return false;
+    const now = Date.now();
+    const HOURS_18 = 18 * 60 * 60_000;
+    if (t >= now && t - now <= HOURS_18) return true;
+    return isTodayInSaoPaulo(iso);
+  } catch {
+    return false;
+  }
+}
+
 export function formatTicketForCopy(t: Ticket): string {
   const scenarioName = t.scenario === "safe" ? "SEGURO" : t.scenario === "conservative" ? "CONSERVADOR" : "AGRESSIVO";
   const lines = [

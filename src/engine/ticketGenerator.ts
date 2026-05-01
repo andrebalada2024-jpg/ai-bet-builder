@@ -32,18 +32,24 @@ function makeTicket(
   excludeIds: Set<string> = new Set()
 ): Ticket | null {
   const strat = getStrategy(scenario);
-  const { picked } = buildSelections(scored, strat, excludeIds);
-
-  // Mínimo absoluto: 3 seleções (regra "nunca bilhete vazio, mas não force")
-  const minAccept = Math.max(3, Math.min(strat.minSelections, picked.length));
+  let { picked } = buildSelections(scored, strat, excludeIds);
 
   if (picked.length < strat.minSelections) {
-    // Tenta relaxar score levemente (mantém anti-trap, mantém regras de mercado)
-    const relaxed = { ...strat, minScore: Math.max(45, strat.minScore - 8) };
-    const retry = buildSelections(scored, relaxed, excludeIds).picked;
-    if (retry.length < 3) return null;
-    return finalize(scenario, retry.slice(0, strat.maxSelections));
+    // 1ª tentativa: relaxa score
+    const r1 = { ...strat, minScore: Math.max(42, strat.minScore - 8) };
+    picked = buildSelections(scored, r1, excludeIds).picked;
   }
+  if (picked.length < 3) {
+    // 2ª tentativa: relaxa score + maxOdd
+    const r2 = { ...strat, minScore: 38, maxOdd: strat.maxOdd + 0.6 };
+    picked = buildSelections(scored, r2, excludeIds).picked;
+  }
+  if (picked.length < 3) {
+    // 3ª tentativa: ignora exclusão (libera matches já usados em outros bilhetes)
+    const r3 = { ...strat, minScore: 38, maxOdd: strat.maxOdd + 0.6 };
+    picked = buildSelections(scored, r3, new Set()).picked;
+  }
+  if (picked.length < 3) return null;
 
   return finalize(scenario, picked.slice(0, strat.maxSelections));
 }

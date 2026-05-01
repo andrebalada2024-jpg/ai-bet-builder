@@ -58,7 +58,7 @@ export function TodayMatchesDialog({ open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-gold" />
-            Jogos reais de hoje
+            Jogos reais (hoje + próximas 18h)
           </DialogTitle>
           <DialogDescription className="flex items-center justify-between gap-2">
             <span>
