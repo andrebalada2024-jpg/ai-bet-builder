@@ -1,5 +1,5 @@
 import type { RawMatch } from "@/types/betting";
-import { isTodayInSaoPaulo } from "@/utils/formatters";
+import { isWithinTodayWindow } from "@/utils/formatters";
 
 const API_KEY_STORAGE = "betia_odds_api_key";
 
@@ -16,9 +16,9 @@ export function clearApiKey() {
   localStorage.removeItem(API_KEY_STORAGE);
 }
 
-// Sport keys covered by The Odds API (focus on football)
+// Sport keys cobertos pela The Odds API — expandido para máximo volume de jogos
 const SPORTS = [
-  // América do Sul
+  // ===== América do Sul =====
   "soccer_conmebol_copa_libertadores",
   "soccer_conmebol_copa_sudamericana",
   "soccer_brazil_campeonato",
@@ -27,21 +27,54 @@ const SPORTS = [
   "soccer_chile_campeonato",
   "soccer_mexico_ligamx",
   "soccer_usa_mls",
-  // Europa
+  // ===== Europa — Top 5 + copas =====
   "soccer_uefa_champs_league",
   "soccer_uefa_europa_league",
   "soccer_uefa_europa_conference_league",
+  "soccer_uefa_nations_league",
+  "soccer_uefa_european_championship",
+  "soccer_fifa_world_cup",
+  "soccer_fifa_world_cup_qualifiers_europe",
+  "soccer_fifa_world_cup_qualifiers_south_america",
   "soccer_epl",
   "soccer_efl_champ",
+  "soccer_england_league1",
+  "soccer_england_league2",
+  "soccer_fa_cup",
+  "soccer_england_efl_cup",
   "soccer_spain_la_liga",
+  "soccer_spain_segunda_division",
   "soccer_italy_serie_a",
+  "soccer_italy_serie_b",
   "soccer_germany_bundesliga",
+  "soccer_germany_bundesliga2",
+  "soccer_germany_liga3",
   "soccer_france_ligue_one",
+  "soccer_france_ligue_two",
   "soccer_netherlands_eredivisie",
   "soccer_portugal_primeira_liga",
   "soccer_turkey_super_league",
-  // Outras
+  // ===== Europa — outras ligas =====
+  "soccer_belgium_first_div",
+  "soccer_switzerland_superleague",
+  "soccer_austria_bundesliga",
+  "soccer_greece_super_league",
+  "soccer_poland_ekstraklasa",
+  "soccer_norway_eliteserien",
+  "soccer_sweden_allsvenskan",
+  "soccer_sweden_superettan",
+  "soccer_denmark_superliga",
+  "soccer_finland_veikkausliiga",
+  "soccer_spl", // Scottish Premiership
+  "soccer_russia_premier_league",
+  // ===== Resto do mundo =====
   "soccer_saudi_arabia_pro_league",
+  "soccer_japan_j_league",
+  "soccer_korea_kleague1",
+  "soccer_china_superleague",
+  "soccer_australia_aleague",
+  "soccer_egypt_premier_league",
+  "soccer_usa_mls", // já listado, ignora duplicado
 ];
 
 interface OddsApiOutcome {
@@ -165,7 +198,7 @@ async function fetchSport(sport: string, apiKey: string): Promise<RawMatch[]> {
     if (!Number.isFinite(t)) continue;
     // Permite pré-jogo e ao vivo até 65 min; bloqueia jogos provavelmente encerrados
     if (now - t > MAX_LIVE_MS) continue;
-    if (!isTodayInSaoPaulo(ev.commence_time)) continue; // somente hoje (fuso BR)
+    if (!isWithinTodayWindow(ev.commence_time)) continue; // hoje (BR) + próximas 18h
     const odds = aggregateOdds(ev);
     if (!odds) continue;
     matches.push({
@@ -189,7 +222,8 @@ export async function fetchTodayMatches(): Promise<RawMatch[]> {
     throw new Error("NO_API_KEY");
   }
 
-  const results = await Promise.allSettled(SPORTS.map((s) => fetchSport(s, apiKey)));
+  const uniqueSports = Array.from(new Set(SPORTS));
+  const results = await Promise.allSettled(uniqueSports.map((s) => fetchSport(s, apiKey)));
   const all: RawMatch[] = [];
   let anyFulfilled = false;
   for (const r of results) {

@@ -1,5 +1,5 @@
 import type { RawMatch } from "@/types/betting";
-import { isTodayInSaoPaulo } from "@/utils/formatters";
+import { isWithinTodayWindow } from "@/utils/formatters";
 
 export function normalizeMatches(matches: RawMatch[]): RawMatch[] {
   const now = Date.now();
@@ -11,7 +11,7 @@ export function normalizeMatches(matches: RawMatch[]): RawMatch[] {
       const t = new Date(m.kickoff).getTime();
       if (!Number.isFinite(t)) return false;
       if (now - t > MAX_LIVE_MS) return false; // encerrado/avançado demais
-      return isTodayInSaoPaulo(m.kickoff); // só hoje (fuso BR)
+      return isWithinTodayWindow(m.kickoff); // hoje (BR) + próximas 18h
     })
     .map((m) => ({
       ...m,
