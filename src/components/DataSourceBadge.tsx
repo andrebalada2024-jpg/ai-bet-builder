@@ -34,7 +34,7 @@ export function DataSourceBadge({ source, fetchedAt, onRefresh, refreshing }: Pr
           }`}
         >
           {isReal ? <Database className="w-3 h-3" /> : <FlaskConical className="w-3 h-3" />}
-          {isReal ? "Dados reais" : "Dados fictícios"}
+          {isReal ? "Fonte: Odds reais via API" : "Dados simulados / fallback"}
         </span>
         <span className="text-xs text-muted-foreground truncate">
           Odds atualizadas às {formatTime(fetchedAt)}
