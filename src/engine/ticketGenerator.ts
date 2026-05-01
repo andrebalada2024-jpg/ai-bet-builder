@@ -5,6 +5,7 @@ import { analyzeRisk } from "./riskAnalyzer";
 import { shouldBlockMatch } from "./antiTrapEngine";
 import { getStrategy, type StrategyScenario } from "./strategyEngine";
 import { buildSelections } from "./selectionBuilder";
+import { filterPlayable } from "./liveGameFilter";
 
 export interface EngineResult {
   ticket?: Ticket;
@@ -33,15 +34,18 @@ function makeTicket(
   const strat = getStrategy(scenario);
   const { picked } = buildSelections(scored, strat, excludeIds);
 
+  // Mínimo absoluto: 3 seleções (regra "nunca bilhete vazio, mas não force")
+  const minAccept = Math.max(3, Math.min(strat.minSelections, picked.length));
+
   if (picked.length < strat.minSelections) {
-    // Fallback: relaxar score ligeiramente
-    const relaxed = { ...strat, minScore: Math.max(50, strat.minScore - 10) };
+    // Tenta relaxar score levemente (mantém anti-trap, mantém regras de mercado)
+    const relaxed = { ...strat, minScore: Math.max(45, strat.minScore - 8) };
     const retry = buildSelections(scored, relaxed, excludeIds).picked;
-    if (retry.length < Math.min(3, strat.minSelections)) return null;
-    return finalize(scenario, retry);
+    if (retry.length < 3) return null;
+    return finalize(scenario, retry.slice(0, strat.maxSelections));
   }
 
-  return finalize(scenario, picked);
+  return finalize(scenario, picked.slice(0, strat.maxSelections));
 }
 
 function finalize(
@@ -51,7 +55,7 @@ function finalize(
   const selections = picked.map((p) => p.selection);
   const estimatedOdd = +selections.reduce((acc, s) => acc * s.odd, 1).toFixed(2);
   const avgScore = picked.reduce((a, p) => a + p.score, 0) / (picked.length || 1);
-  const overall: Confidence = avgScore >= 82 ? "high" : avgScore >= 70 ? "medium" : "low";
+  const overall: Confidence = avgScore >= 80 ? "high" : avgScore >= 65 ? "medium" : "low";
 
   return {
     scenario,
@@ -64,20 +68,22 @@ function finalize(
 }
 
 export async function generateTicket(scenario: Scenario): Promise<EngineResult> {
-  // 1. Buscar jogos
+  // 1. Buscar jogos reais
   const fetched = await fetchMatches();
   if (fetched.matches.length === 0) {
     throw new Error("NO_MATCHES");
   }
 
-  // 2. Processar odds | 3. Probabilidade
-  const processed = processOdds(fetched.matches);
+  // 2. Live filter — remove jogos encerrados/avançados
+  const playable = filterPlayable(fetched.matches);
+  if (playable.length === 0) throw new Error("NO_MATCHES");
+
+  // 3. Processar odds (leitura de mercado)
+  const processed = processOdds(playable);
 
   // 4. Anti-trap (bloquear jogos)
   const safeMatches = processed.filter((p) => !shouldBlockMatch(p));
-  if (safeMatches.length === 0) {
-    throw new Error("NO_MATCHES");
-  }
+  if (safeMatches.length === 0) throw new Error("NO_MATCHES");
 
   // 5. Score de risco
   const scored = analyzeRisk(safeMatches);

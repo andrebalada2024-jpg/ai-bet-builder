@@ -1,6 +1,13 @@
 import type { RawMatch } from "@/types/betting";
 
-export type FavoriteTier = "strong" | "medium" | "balanced";
+export type FavoriteTier = "strong" | "clear" | "medium" | "none";
+
+export interface MarketRead {
+  balanced: boolean;
+  veryBalanced: boolean;
+  open: boolean;
+  locked: boolean;
+}
 
 export interface ProcessedMatch {
   match: RawMatch;
@@ -10,10 +17,39 @@ export interface ProcessedMatch {
   favorite: "home" | "away" | "none";
   favoriteTier: FavoriteTier;
   oddDiff: number;
+  read: MarketRead;
 }
 
 export function impliedProb(odd: number): number {
   return odd > 0 ? 1 / odd : 0;
+}
+
+function tierOf(favOdd: number, oddDiff: number): FavoriteTier {
+  if (favOdd <= 1.55) return "strong";
+  if (favOdd <= 1.6) return "clear";
+  if (favOdd <= 2.2) {
+    if (oddDiff < 0.4) return "none";
+    return "medium";
+  }
+  return "none";
+}
+
+function readMarket(m: RawMatch, oddDiff: number): MarketRead {
+  const o = m.odds;
+  const balanced = oddDiff <= 0.85;
+  const veryBalanced = oddDiff <= 0.55 && (!o.draw || o.draw <= 3.95);
+
+  const open =
+    (o.over25 !== undefined && o.over25 <= 1.85) ||
+    (o.over15 !== undefined && o.over15 <= 1.35);
+
+  const locked =
+    (o.under35 !== undefined && o.under35 <= 1.55) ||
+    // proxy under 2.5 baixo: derivado de over25 alto
+    (o.over25 !== undefined && o.over25 >= 2.05) ||
+    veryBalanced;
+
+  return { balanced, veryBalanced, open, locked };
 }
 
 export function processOdds(matches: RawMatch[]): ProcessedMatch[] {
@@ -27,21 +63,18 @@ export function processOdds(matches: RawMatch[]): ProcessedMatch[] {
     const favOdd = isHomeFav ? m.odds.home : m.odds.away;
     const oddDiff = Math.abs(m.odds.home - m.odds.away);
 
-    let tier: FavoriteTier;
-    if (favOdd <= 1.6) tier = "strong";
-    else if (favOdd <= 2.2) tier = "medium";
-    else tier = "balanced";
-
-    if (oddDiff < 0.4 && favOdd > 1.6) tier = "balanced";
+    const tier = tierOf(favOdd, oddDiff);
+    const read = readMarket(m, oddDiff);
 
     return {
       match: m,
       probHome: ph / sum,
       probDraw: pd / sum,
       probAway: pa / sum,
-      favorite: tier === "balanced" ? "none" : isHomeFav ? "home" : "away",
+      favorite: tier === "none" ? "none" : isHomeFav ? "home" : "away",
       favoriteTier: tier,
       oddDiff,
+      read,
     };
   });
 }

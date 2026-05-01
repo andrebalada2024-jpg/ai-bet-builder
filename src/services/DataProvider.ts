@@ -18,14 +18,30 @@ export function clearApiKey() {
 
 // Sport keys covered by The Odds API (focus on football)
 const SPORTS = [
+  // América do Sul
+  "soccer_conmebol_copa_libertadores",
+  "soccer_conmebol_copa_sudamericana",
   "soccer_brazil_campeonato",
+  "soccer_brazil_serie_b",
+  "soccer_argentina_primera_division",
+  "soccer_chile_campeonato",
+  "soccer_mexico_ligamx",
+  "soccer_usa_mls",
+  // Europa
+  "soccer_uefa_champs_league",
+  "soccer_uefa_europa_league",
+  "soccer_uefa_europa_conference_league",
   "soccer_epl",
+  "soccer_efl_champ",
   "soccer_spain_la_liga",
   "soccer_italy_serie_a",
   "soccer_germany_bundesliga",
   "soccer_france_ligue_one",
-  "soccer_uefa_champs_league",
-  "soccer_conmebol_copa_libertadores",
+  "soccer_netherlands_eredivisie",
+  "soccer_portugal_primeira_liga",
+  "soccer_turkey_super_league",
+  // Outras
+  "soccer_saudi_arabia_pro_league",
 ];
 
 interface OddsApiOutcome {
@@ -141,12 +157,14 @@ async function fetchSport(sport: string, apiKey: string): Promise<RawMatch[]> {
   const events: OddsApiEvent[] = await res.json();
 
   const now = Date.now();
+  const MAX_LIVE_MS = 65 * 60_000; // jogos ao vivo até 65 min após início
 
   const matches: RawMatch[] = [];
   for (const ev of events) {
     const t = new Date(ev.commence_time).getTime();
     if (!Number.isFinite(t)) continue;
-    if (t < now) continue; // já começou
+    // Permite pré-jogo e ao vivo até 65 min; bloqueia jogos provavelmente encerrados
+    if (now - t > MAX_LIVE_MS) continue;
     if (!isTodayInSaoPaulo(ev.commence_time)) continue; // somente hoje (fuso BR)
     const odds = aggregateOdds(ev);
     if (!odds) continue;
