@@ -1,5 +1,6 @@
 import type { ProcessedMatch } from "./oddsProcessor";
 import { isSouthAmerican } from "./antiTrapEngine";
+import { getLiveInfo } from "./liveGameFilter";
 
 export type RiskTier = "safe" | "medium" | "high";
 
@@ -9,41 +10,42 @@ export interface ScoredMatch extends ProcessedMatch {
 }
 
 export function scoreMatch(p: ProcessedMatch): ScoredMatch {
-  let score = 70; // base
+  let score = 60; // base
+  const o = p.match.odds;
 
-  // +15 favorito claro
-  if (p.favoriteTier === "strong") score += 15;
+  // Bônus
+  if (p.favoriteTier === "strong" || p.favoriteTier === "clear") score += 15;
+  if ((p.favorite === "home" && o.doubleChance1X) || (p.favorite === "away" && o.doubleChanceX2)) {
+    score += 12;
+  }
+  if (o.under35 && o.under35 <= 1.85 && p.read.balanced) score += 12;
+  if (o.under35 && o.under35 <= 1.45) score += 10;
+  if (p.read.locked) score += 10;
+  if (o.under35 && o.under35 <= 1.7) score += 8;
 
-  // +10 odds equilibradas com proteção possível (DC disponível)
-  if (
-    p.favoriteTier === "balanced" &&
-    p.match.odds.doubleChance1X &&
-    p.match.odds.doubleChanceX2
-  ) {
-    score += 10;
+  const live = getLiveInfo(p.match.kickoff);
+  if (!live.isLive) score += 5;
+
+  // Penalidades
+  if (live.isLive) score -= 15;
+  if (live.blocked) score -= 20;
+  if (o.home < 1.2 && o.away < 1.2) score -= 20;
+
+  if (p.read.balanced && p.favoriteTier === "none") score -= 20;
+  if (p.read.locked && o.over15 && o.over15 <= 1.35) score -= 28;
+
+  if (isSouthAmerican(p.match.league)) {
+    if (p.read.balanced && !p.read.open) score -= 25;
+    if (p.read.balanced && p.favorite === "away") score -= 20;
   }
 
-  // +10 under alto disponível
-  if (p.match.odds.under35 && p.match.odds.under35 <= 1.6) score += 10;
-
-  // -20 jogo equilibrado sem proteção
-  if (p.favoriteTier === "balanced" && !p.match.odds.doubleChance1X && !p.match.odds.doubleChanceX2) {
-    score -= 20;
+  // Conflito declarado: favorito teórico mas DC contrária quase igual
+  if (p.favoriteTier !== "none" && o.doubleChance1X && o.doubleChanceX2) {
+    if (Math.abs(o.doubleChance1X - o.doubleChanceX2) < 0.05) score -= 30;
   }
 
-  // -25 sul-americano imprevisível
-  if (isSouthAmerican(p.match.league) && p.favoriteTier !== "strong") score -= 25;
-
-  // -30 odds inconsistentes (favorito teórico mas mercado contraria)
-  if (p.favoriteTier === "strong") {
-    const favOdd = p.favorite === "home" ? p.match.odds.home : p.match.odds.away;
-    const otherOdd = p.favorite === "home" ? p.match.odds.away : p.match.odds.home;
-    if (otherOdd / favOdd < 1.4) score -= 30;
-  }
-
-  // -20 alta variância (pace alto + favorito médio)
-  const pace = p.match._stats?.paceExpectancy ?? 0.5;
-  if (pace > 0.8 && p.favoriteTier !== "strong") score -= 20;
+  // Sem leitura clara
+  if (p.favoriteTier === "none" && !p.read.locked && !p.read.open) score -= 30;
 
   score = Math.max(0, Math.min(100, score));
 
