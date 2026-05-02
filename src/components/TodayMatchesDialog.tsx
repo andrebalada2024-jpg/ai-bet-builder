@@ -29,8 +29,8 @@ export function TodayMatchesDialog({ open, onOpenChange }: Props) {
       setUpdatedAt(new Date());
     } catch (e) {
       const msg = e instanceof Error ? e.message : "ERROR";
-      if (msg === "NO_API_KEY") setError("Configure sua chave da The Odds API nas configurações.");
-      else if (msg === "API_FAILED") setError("Falha ao contatar a API. Verifique sua chave e conexão.");
+      if (msg === "NO_API_KEY") setError("Configure sua chave da The Odds API e/ou Odds API IO nas configurações.");
+      else if (msg === "API_FAILED") setError("Falha ao contatar as APIs. Verifique suas chaves e conexão.");
       else setError("Erro inesperado ao buscar jogos.");
       setMatches([]);
     } finally {

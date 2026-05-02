@@ -1,5 +1,9 @@
 import type { RawMatch } from "@/types/betting";
 import { isWithinTodayWindow } from "@/utils/formatters";
+import {
+  fetchOddsApiIOMatches,
+  getOddsApiIOKey,
+} from "./OddsApiIO";
 
 // === Cache simples de odds (TTL: 90 segundos) ===
 const CACHE_TTL_MS = 90_000;
@@ -238,37 +242,66 @@ async function fetchSport(sport: string, apiKey: string): Promise<RawMatch[]> {
   return matches;
 }
 
+/** Mescla jogos das duas APIs deduplicando por (home + away + dia). */
+function mergeMatches(a: RawMatch[], b: RawMatch[]): RawMatch[] {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const keyOf = (m: RawMatch) =>
+    `${norm(m.homeTeam)}__${norm(m.awayTeam)}__${m.kickoff.slice(0, 10)}`;
+  const map = new Map<string, RawMatch>();
+  for (const m of [...a, ...b]) {
+    const k = keyOf(m);
+    if (!map.has(k)) map.set(k, m);
+  }
+  return Array.from(map.values());
+}
+
 export async function fetchTodayMatches(opts: { bustCache?: boolean } = {}): Promise<RawMatch[]> {
   const apiKey = getApiKey();
+  const ioKey = getOddsApiIOKey();
 
-  if (!apiKey) {
-    // Sem chave configurada — app não usa dados fictícios
+  // Pelo menos uma das duas chaves precisa estar configurada
+  if (!apiKey && !ioKey) {
     throw new Error("NO_API_KEY");
   }
 
-  // Retorna do cache se ainda válido (evita 48 requests repetidos)
-  if (!opts.bustCache && isCacheValid(apiKey)) {
+  // Cache válido apenas quando a configuração de chaves não mudou
+  const cacheKey = `${apiKey || "-"}|${ioKey || "-"}`;
+  if (!opts.bustCache && isCacheValid(cacheKey)) {
     console.info("[BetIA] Cache de odds válido, reutilizando dados.");
     return _cache!.data;
   }
 
-  const uniqueSports = Array.from(new Set(SPORTS));
-  const results = await Promise.allSettled(uniqueSports.map((s) => fetchSport(s, apiKey)));
-  const all: RawMatch[] = [];
-  let anyFulfilled = false;
-  for (const r of results) {
-    if (r.status === "fulfilled") {
-      anyFulfilled = true;
-      all.push(...r.value);
-    } else {
-      console.warn("[BetIA] Falha em sport:", r.reason);
-    }
+  const tasks: Promise<RawMatch[]>[] = [];
+  if (apiKey) {
+    const uniqueSports = Array.from(new Set(SPORTS));
+    tasks.push(
+      Promise.allSettled(uniqueSports.map((s) => fetchSport(s, apiKey))).then((results) => {
+        const out: RawMatch[] = [];
+        for (const r of results) {
+          if (r.status === "fulfilled") out.push(...r.value);
+          else console.warn("[BetIA] TheOddsAPI sport falhou:", r.reason);
+        }
+        return out;
+      })
+    );
   }
-  if (!anyFulfilled) {
+  if (ioKey) {
+    tasks.push(
+      fetchOddsApiIOMatches().catch((e) => {
+        console.warn("[BetIA] OddsApiIO falhou:", e);
+        return [] as RawMatch[];
+      })
+    );
+  }
+
+  const results = await Promise.all(tasks);
+  const all = results.reduce<RawMatch[]>((acc, arr) => mergeMatches(acc, arr), []);
+
+  if (!all.length) {
     throw new Error("API_FAILED");
   }
 
-  setCache(all, apiKey);
+  setCache(all, cacheKey);
   return all;
 }
 

@@ -92,7 +92,7 @@ const Index = () => {
     return (
       <ErrorState
         title="API Indisponível"
-        message="Nenhum dado real encontrado. Configure sua chave da The Odds API no botão de configurações na tela inicial."
+        message="Nenhum dado real encontrado. Configure sua chave da The Odds API e/ou Odds API IO no botão de configurações na tela inicial."
         onHome={goHome}
       />
     );
@@ -102,7 +102,7 @@ const Index = () => {
     return (
       <ErrorState
         title="Falha ao buscar dados reais"
-        message="Não conseguimos contatar a The Odds API. Verifique sua chave e conexão e tente novamente."
+        message="Não conseguimos contatar as APIs configuradas. Verifique suas chaves e conexão e tente novamente."
         onRetry={regenerate}
         onHome={goHome}
       />
