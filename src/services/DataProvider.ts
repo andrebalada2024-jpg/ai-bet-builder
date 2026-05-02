@@ -26,6 +26,7 @@ export function invalidateOddsCache(): void {
 }
 
 const API_KEY_STORAGE = "betia_odds_api_key";
+const API_KEY_IO_STORAGE = "betia_odds_api_io_key";
 
 export function getApiKey(): string {
   if (typeof window === "undefined") return "";
@@ -38,6 +39,29 @@ export function setApiKey(key: string) {
 
 export function clearApiKey() {
   localStorage.removeItem(API_KEY_STORAGE);
+}
+
+// === Segunda chave: Odds API IO (oddsapi.io) ===
+export function getApiKeyIO(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(API_KEY_IO_STORAGE) || import.meta.env.VITE_ODDS_API_IO_KEY || "";
+}
+
+export function setApiKeyIO(key: string) {
+  localStorage.setItem(API_KEY_IO_STORAGE, key.trim());
+}
+
+export function clearApiKeyIO() {
+  localStorage.removeItem(API_KEY_IO_STORAGE);
+}
+
+/** Retorna info sobre quais provedores estão configurados */
+export function getProvidersStatus() {
+  return {
+    theOddsApi: !!getApiKey(),
+    oddsApiIO: !!getApiKeyIO(),
+    any: !!(getApiKey() || getApiKeyIO()),
+  };
 }
 
 // Sport keys cobertos pela The Odds API — expandido para máximo volume de jogos
