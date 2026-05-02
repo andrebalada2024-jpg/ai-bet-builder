@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Settings, ExternalLink, CheckCircle2 } from "lucide-react";
 import { getApiKey, setApiKey, clearApiKey } from "@/services/DataProvider";
+import { getOddsApiIOKey, setOddsApiIOKey, clearOddsApiIOKey } from "@/services/OddsApiIO";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -16,33 +17,54 @@ import { Label } from "@/components/ui/label";
 
 export function ApiKeySettings() {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
-  const [hasKey, setHasKey] = useState(false);
+  const [theOddsValue, setTheOddsValue] = useState("");
+  const [ioValue, setIoValue] = useState("");
+  const [hasTheOdds, setHasTheOdds] = useState(false);
+  const [hasIO, setHasIO] = useState(false);
 
   useEffect(() => {
-    const k = getApiKey();
-    setHasKey(!!k);
-    setValue(k);
+    const k1 = getApiKey();
+    const k2 = getOddsApiIOKey();
+    setTheOddsValue(k1);
+    setIoValue(k2);
+    setHasTheOdds(!!k1);
+    setHasIO(!!k2);
   }, [open]);
 
   const save = () => {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      toast.error("Insira uma chave válida");
+    const t = theOddsValue.trim();
+    const i = ioValue.trim();
+    if (!t && !i) {
+      toast.error("Configure pelo menos uma das chaves.");
       return;
     }
-    setApiKey(trimmed);
-    setHasKey(true);
-    toast.success("Chave salva! Buscando dados reais.");
+    if (t) setApiKey(t); else clearApiKey();
+    if (i) setOddsApiIOKey(i); else clearOddsApiIOKey();
+    setHasTheOdds(!!t);
+    setHasIO(!!i);
+    toast.success(
+      t && i ? "Ambas as APIs conectadas." : t ? "The Odds API conectada." : "Odds API IO conectada."
+    );
     setOpen(false);
   };
 
-  const remove = () => {
+  const removeAll = () => {
     clearApiKey();
-    setValue("");
-    setHasKey(false);
-    toast.success("Chave removida. Configure novamente para buscar dados reais.");
+    clearOddsApiIOKey();
+    setTheOddsValue("");
+    setIoValue("");
+    setHasTheOdds(false);
+    setHasIO(false);
+    toast.success("Chaves removidas.");
   };
+
+  const connectedCount = (hasTheOdds ? 1 : 0) + (hasIO ? 1 : 0);
+  const label =
+    connectedCount === 0
+      ? "Conectar API"
+      : connectedCount === 2
+      ? "2 APIs conectadas"
+      : "1 API conectada";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -52,53 +74,72 @@ export function ApiKeySettings() {
           aria-label="Configurações"
         >
           <Settings className="w-4 h-4" />
-          <span className="hidden sm:inline">
-            {hasKey ? "API conectada" : "Conectar API"}
-          </span>
-          {hasKey && <CheckCircle2 className="w-4 h-4 text-gold" />}
+          <span className="hidden sm:inline">{label}</span>
+          {connectedCount > 0 && <CheckCircle2 className="w-4 h-4 text-gold" />}
         </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Conectar dados reais</DialogTitle>
           <DialogDescription>
-            Cole sua chave da The Odds API para buscar jogos e odds reais automaticamente.
-            Sem chave, o app usa dados simulados.
+            Configure uma ou as duas APIs. Quando ambas estão ativas, o BetIA combina jogos
+            das duas fontes para máximo volume — sem dados fictícios.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-2">
+        <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="apikey">API Key</Label>
+            <Label htmlFor="apikey">The Odds API key</Label>
             <Input
               id="apikey"
               type="password"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
+              value={theOddsValue}
+              onChange={(e) => setTheOddsValue(e.target.value)}
               placeholder="ex: 1a2b3c4d5e6f..."
               autoComplete="off"
             />
+            <a
+              href="https://the-odds-api.com/#get-access"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-gold hover:underline"
+            >
+              Obter chave grátis na The Odds API <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
-          <a
-            href="https://the-odds-api.com/#get-access"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-gold hover:underline"
-          >
-            Obter chave grátis na The Odds API <ExternalLink className="w-3 h-3" />
-          </a>
+
+          <div className="space-y-2">
+            <Label htmlFor="iokey">Odds API IO key</Label>
+            <Input
+              id="iokey"
+              type="password"
+              value={ioValue}
+              onChange={(e) => setIoValue(e.target.value)}
+              placeholder="ex: 9z8y7x6w5v..."
+              autoComplete="off"
+            />
+            <a
+              href="https://oddsapi.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-gold hover:underline"
+            >
+              Obter chave em oddsapi.io <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+
           <p className="text-xs text-muted-foreground">
-            Sua chave fica salva apenas neste dispositivo (localStorage).
+            As chaves ficam salvas apenas neste dispositivo (localStorage).
           </p>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
-          {hasKey && (
+          {(hasTheOdds || hasIO) && (
             <button
-              onClick={remove}
+              onClick={removeAll}
               className="px-4 py-2 rounded-xl border border-border text-sm hover:bg-secondary transition-smooth"
             >
-              Remover
+              Remover todas
             </button>
           )}
           <button
