@@ -6,18 +6,18 @@ const CACHE_TTL_MS = 90_000;
 interface OddsCache {
   data: RawMatch[];
   fetchedAt: number;
-  apiKey: string;
+  cacheKey: string;
 }
 let _cache: OddsCache | null = null;
 
-function isCacheValid(apiKey: string): boolean {
+function isCacheValid(cacheKey: string): boolean {
   if (!_cache) return false;
-  if (_cache.apiKey !== apiKey) return false; // chave mudou
+  if (_cache.cacheKey !== cacheKey) return false;
   return Date.now() - _cache.fetchedAt < CACHE_TTL_MS;
 }
 
-function setCache(data: RawMatch[], apiKey: string): void {
-  _cache = { data, fetchedAt: Date.now(), apiKey };
+function setCache(data: RawMatch[], cacheKey: string): void {
+  _cache = { data, fetchedAt: Date.now(), cacheKey };
 }
 
 /** Invalida cache manualmente (chamado pelo botão Atualizar Odds) */
