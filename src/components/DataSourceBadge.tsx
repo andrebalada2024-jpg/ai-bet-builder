@@ -1,4 +1,5 @@
-import { Database, FlaskConical, RefreshCw } from "lucide-react";
+import { Database, FlaskConical, RefreshCw, Shield } from "lucide-react";
+import { getLastOddsSource } from "@/services/DataProvider";
 
 interface Props {
   source: "real" | "mock";
@@ -23,18 +24,25 @@ function formatTime(iso: string) {
 
 export function DataSourceBadge({ source, fetchedAt, onRefresh, refreshing }: Props) {
   const isReal = source === "real";
+  const auxiliary = isReal && getLastOddsSource() === "auxiliary";
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-2.5 mb-4 rounded-2xl bg-secondary/60 border border-border">
       <div className="flex items-center gap-2 min-w-0">
         <span
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-            isReal
-              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-              : "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+            !isReal
+              ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+              : auxiliary
+              ? "bg-sky-500/15 text-sky-400 border border-sky-500/30"
+              : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
           }`}
         >
-          {isReal ? <Database className="w-3 h-3" /> : <FlaskConical className="w-3 h-3" />}
-          {isReal ? "Fonte: Odds reais via API" : "Dados simulados / fallback"}
+          {!isReal ? <FlaskConical className="w-3 h-3" /> : auxiliary ? <Shield className="w-3 h-3" /> : <Database className="w-3 h-3" />}
+          {!isReal
+            ? "Dados simulados / fallback"
+            : auxiliary
+            ? "Fonte auxiliar: odds reais (backup)"
+            : "Fonte: Odds reais via API"}
         </span>
         <span className="text-xs text-muted-foreground truncate">
           Odds atualizadas às {formatTime(fetchedAt)}

@@ -1,9 +1,22 @@
 import type { RawMatch } from "@/types/betting";
 import { isWithinTodayWindow } from "@/utils/formatters";
+import { supabase } from "@/integrations/supabase/client";
 import {
   fetchOddsApiIOMatches,
   getOddsApiIOKey,
 } from "./OddsApiIO";
+
+/** Última fonte usada na busca atual (para a UI). "primary" = APIs com chave, "auxiliary" = edge function pública. */
+export type OddsSource = "primary" | "auxiliary";
+let _lastSource: OddsSource = "primary";
+export function getLastOddsSource(): OddsSource { return _lastSource; }
+
+async function fetchAuxiliarySource(): Promise<RawMatch[]> {
+  const { data, error } = await supabase.functions.invoke("odds-fallback", { body: {} });
+  if (error) throw error;
+  const matches = (data?.matches ?? []) as RawMatch[];
+  return matches.filter((m) => isWithinTodayWindow(m.kickoff));
+}
 
 // === Cache simples de odds (TTL: 90 segundos) ===
 const CACHE_TTL_MS = 90_000;
@@ -259,11 +272,6 @@ export async function fetchTodayMatches(opts: { bustCache?: boolean } = {}): Pro
   const apiKey = getApiKey();
   const ioKey = getOddsApiIOKey();
 
-  // Pelo menos uma das duas chaves precisa estar configurada
-  if (!apiKey && !ioKey) {
-    throw new Error("NO_API_KEY");
-  }
-
   // Cache válido apenas quando a configuração de chaves não mudou
   const cacheKey = `${apiKey || "-"}|${ioKey || "-"}`;
   if (!opts.bustCache && isCacheValid(cacheKey)) {
@@ -294,14 +302,31 @@ export async function fetchTodayMatches(opts: { bustCache?: boolean } = {}): Pro
     );
   }
 
-  const results = await Promise.all(tasks);
-  const all = results.reduce<RawMatch[]>((acc, arr) => mergeMatches(acc, arr), []);
-
-  if (!all.length) {
-    throw new Error("API_FAILED");
+  let all: RawMatch[] = [];
+  if (tasks.length) {
+    const results = await Promise.all(tasks);
+    all = results.reduce<RawMatch[]>((acc, arr) => mergeMatches(acc, arr), []);
   }
 
-  setCache(all, cacheKey);
-  return all;
+  if (all.length) {
+    _lastSource = "primary";
+    setCache(all, cacheKey);
+    return all;
+  }
+
+  // FALLBACK AUTOMÁTICO — fonte auxiliar com dados REAIS via edge function (sem chave).
+  console.warn("[BetIA] APIs primárias falharam ou sem chave; acionando fonte auxiliar real.");
+  try {
+    const aux = await fetchAuxiliarySource();
+    if (aux.length) {
+      _lastSource = "auxiliary";
+      setCache(aux, cacheKey);
+      return aux;
+    }
+  } catch (e) {
+    console.error("[BetIA] Fonte auxiliar falhou:", e);
+  }
+
+  throw new Error(apiKey || ioKey ? "API_FAILED" : "NO_API_KEY");
 }
 
