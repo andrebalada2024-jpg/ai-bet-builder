@@ -1,9 +1,22 @@
 import type { RawMatch } from "@/types/betting";
 import { isWithinTodayWindow } from "@/utils/formatters";
+import { supabase } from "@/integrations/supabase/client";
 import {
   fetchOddsApiIOMatches,
   getOddsApiIOKey,
 } from "./OddsApiIO";
+
+/** Última fonte usada na busca atual (para a UI). "primary" = APIs com chave, "auxiliary" = edge function pública. */
+export type OddsSource = "primary" | "auxiliary";
+let _lastSource: OddsSource = "primary";
+export function getLastOddsSource(): OddsSource { return _lastSource; }
+
+async function fetchAuxiliarySource(): Promise<RawMatch[]> {
+  const { data, error } = await supabase.functions.invoke("odds-fallback", { body: {} });
+  if (error) throw error;
+  const matches = (data?.matches ?? []) as RawMatch[];
+  return matches.filter((m) => isWithinTodayWindow(m.kickoff));
+}
 
 // === Cache simples de odds (TTL: 90 segundos) ===
 const CACHE_TTL_MS = 90_000;
