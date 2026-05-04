@@ -91,8 +91,9 @@ const Index = () => {
   if (state === "no_api_key") {
     return (
       <ErrorState
-        title="API Indisponível"
-        message="Nenhum dado real encontrado. Configure sua chave da The Odds API e/ou Odds API IO no botão de configurações na tela inicial."
+        title="Nenhuma fonte de dados disponível"
+        message="Sem chaves configuradas e a fonte auxiliar (backup) também não respondeu. Configure uma chave nas configurações ou tente novamente."
+        onRetry={regenerate}
         onHome={goHome}
       />
     );
@@ -101,8 +102,8 @@ const Index = () => {
   if (state === "api_failed") {
     return (
       <ErrorState
-        title="Falha ao buscar dados reais"
-        message="Não conseguimos contatar as APIs configuradas. Verifique suas chaves e conexão e tente novamente."
+        title="Todas as fontes falharam"
+        message="As APIs primárias e a fonte auxiliar de backup não responderam. Aguarde alguns instantes e tente novamente."
         onRetry={regenerate}
         onHome={goHome}
       />
