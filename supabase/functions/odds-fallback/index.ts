@@ -54,16 +54,13 @@ async function fetchESPN(date: string): Promise<RawMatch[]> {
     if (!comp) continue;
     const oddsArr = comp.odds ?? [];
     if (!oddsArr.length) continue;
-    const o = oddsArr[0];
-    const ml = o.moneyline;
+    const o = oddsArr[0] || {};
+    const ml = o.moneyline || {};
     let h = 0, d = 0, a = 0;
-    if (ml) {
-      h = americanToDecimal(ml.home?.close?.odds ?? ml.home?.open?.odds);
-      a = americanToDecimal(ml.away?.close?.odds ?? ml.away?.open?.odds);
-      d = americanToDecimal(ml.draw?.close?.odds ?? ml.draw?.open?.odds);
-    }
+    h = americanToDecimal(ml.home?.close?.odds ?? ml.home?.open?.odds);
+    a = americanToDecimal(ml.away?.close?.odds ?? ml.away?.open?.odds);
+    d = americanToDecimal(ml.draw?.close?.odds ?? ml.draw?.open?.odds);
     if (!h || !a) {
-      // try drawOdds/homeTeamOdds fallback (older format)
       h = h || americanToDecimal(o.homeTeamOdds?.moneyLine);
       a = a || americanToDecimal(o.awayTeamOdds?.moneyLine);
       d = d || americanToDecimal(o.drawOdds?.moneyLine);
