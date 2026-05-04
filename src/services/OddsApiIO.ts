@@ -174,9 +174,10 @@ export async function fetchOddsApiIOMatches(): Promise<RawMatch[]> {
   const key = getOddsApiIOKey();
   if (!key) throw new Error("NO_API_KEY_IO");
 
+  // Filtra apenas casas habilitadas pelo usuário: Bet365 e Superbet
   const url = `${BASE_URL}/odds?apikey=${encodeURIComponent(
     key
-  )}&sport=soccer&markets=1x2,over_under,double_chance,btts`;
+  )}&sport=soccer&markets=1x2,over_under,double_chance,btts&bookmakers=bet365,superbet`;
 
   const res = await fetch(url);
   if (!res.ok) {

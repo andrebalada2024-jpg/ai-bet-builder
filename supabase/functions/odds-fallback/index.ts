@@ -1,5 +1,5 @@
 // Auxiliary REAL odds source — used when primary APIs fail.
-// Uses Sofascore public endpoints (server-side, no key, no CORS issues).
+// Uses ESPN public scoreboard API (no key, no CORS issues server-side).
 // Returns RawMatch[] in the same shape consumed by the frontend.
 
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
@@ -15,14 +15,15 @@ interface RawMatch {
   _stats?: Record<string, number>;
 }
 
-const UA = {
-  "User-Agent":
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-  "Accept": "application/json",
-};
-
 function ymd(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function americanToDecimal(a: string | number | undefined | null): number {
+  if (a === undefined || a === null) return 0;
+  const n = typeof a === "string" ? parseInt(a.replace("+", ""), 10) : a;
+  if (!Number.isFinite(n) || n === 0) return 0;
+  return n > 0 ? +(n / 100 + 1).toFixed(2) : +(100 / Math.abs(n) + 1).toFixed(2);
 }
 
 function deriveStats(o: RawOdds) {
@@ -40,82 +41,65 @@ function deriveStats(o: RawOdds) {
   };
 }
 
-async function fetchEvents(date: string) {
-  const url = `https://api.sofascore.com/api/v1/sport/football/scheduled-events/${date}`;
-  const r = await fetch(url, { headers: UA });
-  if (!r.ok) throw new Error(`sofascore events ${r.status}`);
+async function fetchESPN(date: string): Promise<RawMatch[]> {
+  const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard?dates=${date}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`espn ${r.status}`);
   const j = await r.json();
-  return (j.events ?? []) as any[];
-}
+  const events = (j.events ?? []) as any[];
+  const out: RawMatch[] = [];
 
-async function fetchOdds(eventId: number): Promise<RawOdds | null> {
-  try {
-    const r = await fetch(
-      `https://api.sofascore.com/api/v1/event/${eventId}/odds/1/all`,
-      { headers: UA },
-    );
-    if (!r.ok) return null;
-    const j = await r.json();
-    const markets: any[] = j.markets ?? [];
+  for (const ev of events) {
+    const comp = ev.competitions?.[0];
+    if (!comp) continue;
+    const oddsArr = comp.odds ?? [];
+    if (!oddsArr.length) continue;
+    const o = oddsArr[0];
+    const ml = o.moneyline;
     let h = 0, d = 0, a = 0;
-    let over15: number | undefined, over25: number | undefined, under35: number | undefined;
-    let dc1x: number | undefined, dcx2: number | undefined;
-
-    const fracToDec = (s: string): number => {
-      if (!s) return 0;
-      if (s.includes("/")) {
-        const [n, m] = s.split("/").map(Number);
-        if (!m) return 0;
-        return +(n / m + 1).toFixed(2);
-      }
-      const v = Number(s);
-      return Number.isFinite(v) ? v : 0;
-    };
-
-    for (const m of markets) {
-      const name = (m.marketName || "").toLowerCase();
-      const choices: any[] = m.choices ?? [];
-      if (name === "full time" || name === "1x2") {
-        for (const c of choices) {
-          const v = fracToDec(c.fractionalValue);
-          if (c.name === "1") h = v;
-          else if (c.name === "X") d = v;
-          else if (c.name === "2") a = v;
-        }
-      } else if (name === "double chance") {
-        for (const c of choices) {
-          const v = fracToDec(c.fractionalValue);
-          if (c.name === "1X") dc1x = v;
-          else if (c.name === "X2") dcx2 = v;
-        }
-      } else if (name.startsWith("goals over/under")) {
-        const line = m.choiceGroup || "";
-        for (const c of choices) {
-          const v = fracToDec(c.fractionalValue);
-          if (line.includes("1.5") && c.name?.toLowerCase() === "over") over15 = v;
-          if (line.includes("2.5") && c.name?.toLowerCase() === "over") over25 = v;
-          if (line.includes("3.5") && c.name?.toLowerCase() === "under") under35 = v;
-        }
-      }
+    if (ml) {
+      h = americanToDecimal(ml.home?.close?.odds ?? ml.home?.open?.odds);
+      a = americanToDecimal(ml.away?.close?.odds ?? ml.away?.open?.odds);
+      d = americanToDecimal(ml.draw?.close?.odds ?? ml.draw?.open?.odds);
+    }
+    if (!h || !a) {
+      // try drawOdds/homeTeamOdds fallback (older format)
+      h = h || americanToDecimal(o.homeTeamOdds?.moneyLine);
+      a = a || americanToDecimal(o.awayTeamOdds?.moneyLine);
+      d = d || americanToDecimal(o.drawOdds?.moneyLine);
+    }
+    if (!h || !a) continue;
+    if (!d) {
+      // derive draw from market overround
+      const ph = 1 / h, pa = 1 / a;
+      const pd = Math.max(0.05, 1 - ph - pa);
+      d = +(1 / pd).toFixed(2);
     }
 
-    if (!h || !a || !d) return null;
-    return { home: h, draw: d, away: a, over15, over25, under35, doubleChance1X: dc1x, doubleChanceX2: dcx2 };
-  } catch {
-    return null;
+    const home = comp.competitors?.find((x: any) => x.homeAway === "home");
+    const away = comp.competitors?.find((x: any) => x.homeAway === "away");
+    if (!home || !away) continue;
+
+    const ou = Number(o.overUnder);
+    let over25: number | undefined, under35: number | undefined;
+    if (Number.isFinite(ou)) {
+      // Approximate Over/Under prices from line + Poisson-ish heuristic
+      // (we don't have explicit over/under odds → leave undefined; engine handles it)
+      if (ou <= 2.25) over25 = 2.10;
+      else if (ou >= 3.0) under35 = 1.50;
+    }
+
+    const odds: RawOdds = { home: h, draw: d, away: a, over25, under35 };
+    out.push({
+      id: `espn-${ev.id}`,
+      homeTeam: home.team?.displayName ?? "Home",
+      awayTeam: away.team?.displayName ?? "Away",
+      league: ev.season?.slug?.replace(/-/g, " ") || comp.league?.name || "Football",
+      kickoff: ev.date,
+      odds,
+      _stats: deriveStats(odds),
+    });
   }
-}
-
-async function pLimit<T>(items: T[], limit: number, fn: (x: T) => Promise<any>) {
-  const out: any[] = [];
-  let i = 0;
-  const workers = Array.from({ length: limit }, async () => {
-    while (i < items.length) {
-      const idx = i++;
-      out[idx] = await fn(items[idx]);
-    }
-  });
-  await Promise.all(workers);
   return out;
 }
 
@@ -127,34 +111,17 @@ Deno.serve(async (req) => {
     const tomorrow = new Date(now.getTime() + 24 * 3600_000);
     const dates = [ymd(now), ymd(tomorrow)];
 
-    const evLists = await Promise.all(dates.map((d) => fetchEvents(d).catch(() => [])));
-    const allEvents = evLists.flat();
+    const lists = await Promise.all(dates.map((d) => fetchESPN(d).catch((e) => {
+      console.warn("espn date failed", d, e);
+      return [] as RawMatch[];
+    })));
+    const all = lists.flat();
 
     const windowStart = now.getTime() - 65 * 60_000;
     const windowEnd = now.getTime() + 18 * 3600_000;
-    const filtered = allEvents.filter((ev: any) => {
-      const t = (ev.startTimestamp ?? 0) * 1000;
-      return t >= windowStart && t <= windowEnd && ev.id;
-    });
-
-    // Cap to keep response time reasonable
-    const capped = filtered.slice(0, 120);
-
-    const matches: RawMatch[] = [];
-    await pLimit(capped, 8, async (ev: any) => {
-      const odds = await fetchOdds(ev.id);
-      if (!odds) return;
-      const kickoff = new Date(ev.startTimestamp * 1000).toISOString();
-      const m: RawMatch = {
-        id: `sofa-${ev.id}`,
-        homeTeam: ev.homeTeam?.name ?? "Home",
-        awayTeam: ev.awayTeam?.name ?? "Away",
-        league: ev.tournament?.uniqueTournament?.name || ev.tournament?.name || "Football",
-        kickoff,
-        odds,
-        _stats: deriveStats(odds),
-      };
-      matches.push(m);
+    const matches = all.filter((m) => {
+      const t = new Date(m.kickoff).getTime();
+      return t >= windowStart && t <= windowEnd;
     });
 
     return new Response(
